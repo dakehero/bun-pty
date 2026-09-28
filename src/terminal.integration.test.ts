@@ -421,6 +421,9 @@ describe.skipIf(!runIntegrationTests)("Integration Tests", () => {
     let hasExited = false;
 
     const terminal = new Terminal("powershell.exe", [
+      "-NoLogo",
+      "-NoProfile",
+      "-NonInteractive",
       "-Command",
       "Write-Output 'Hello from PowerShell'",
     ]);
@@ -447,7 +450,7 @@ describe.skipIf(!runIntegrationTests)("Integration Tests", () => {
     await new Promise((resolve) => setTimeout(resolve, 200));
 
     expect(dataReceived).toContain("Hello from PowerShell");
-  });
+  }, 15000);
 
   // Windows-specific: Test environment variables
   test.skipIf(!isWindows)("Terminal passes environment variables on Windows", async () => {
