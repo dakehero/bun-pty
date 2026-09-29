@@ -1,0 +1,52 @@
+name: Diagnose Windows PTY
+
+on:
+  push:
+    branches: [codex/pty-diagnostics]
+
+permissions:
+  contents: read
+
+jobs:
+  diagnose:
+    timeout-minutes: 12
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: windows-11-arm
+            target: aarch64-pc-windows-msvc
+          - runner: windows-latest
+            target: x86_64-pc-windows-msvc
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.4.2
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+      - uses: Swatinem/rust-cache@v2
+      - name: Build native library
+        shell: pwsh
+        env:
+          RUSTFLAGS: -C target-feature=+crt-static
+        run: cargo build --manifest-path rust-pty/Cargo.toml --release --target ${{ matrix.target }}
+      - name: Inspect runner and run diagnostics
+        shell: pwsh
+        env:
+          BUN_PTY_LIB: ${{ github.workspace }}/rust-pty/target/${{ matrix.target }}/release/rust_pty.dll
+          BUN_PTY_DEBUG: '1'
+        run: |
+          $PSVersionTable
+          Get-Command pwsh.exe,powershell.exe | Select-Object Name,Source
+          Get-ItemProperty 'HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion' | Select-Object ProductName,DisplayVersion,CurrentBuild,UBR
+          Get-ItemProperty 'HKCU:\Console' | Select-Object ForceV2,VirtualTerminalLevel,QuickEdit
+          $env:DIAGNOSTIC_PWSH = (Get-Process -Id $PID).Path
+          bun .github/scripts/diagnose-windows-pty.ts
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: diagnostics-${{ matrix.runner }}
+          path: diagnostic-results.json
