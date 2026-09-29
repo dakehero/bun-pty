@@ -28,6 +28,8 @@ jobs:
         with:
           targets: ${{ matrix.target }}
       - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: rust-pty
       - name: Build native library
         shell: pwsh
         env:

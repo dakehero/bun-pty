@@ -2,7 +2,7 @@ import { Terminal } from "../../src/terminal";
 
 const marker = "Hello from PowerShell";
 const flags = ["-NoLogo", "-NoProfile", "-NonInteractive"];
-const timeout = 20000;
+const timeout = 10000;
 const results: object[] = [];
 const windowsPowerShell = `${process.env.SystemRoot}\\System32\\WindowsPowerShell\\v1.0\\powershell.exe`;
 const core = process.env.DIAGNOSTIC_PWSH!;
@@ -58,13 +58,13 @@ async function runPipe(name: string, file: string, args: string[]) {
   results.push(result);
 }
 
-await runPty("legacy-pty-cold", "powershell.exe", [...flags, "-Command", `Write-Output '${marker}'`]);
-await runPipe("legacy-pipe", "powershell.exe", [...flags, "-Command", `Write-Output '${marker}'; $PSVersionTable | ConvertTo-Json -Compress`]);
-await runPty("legacy-pty-fullpath", windowsPowerShell, [...flags, "-Command", `Write-Output '${marker}'`]);
-await runPty("legacy-pty-console", windowsPowerShell, [...flags, "-Command", `[Console]::WriteLine('${marker}')`]);
-await runPty("legacy-pty-bypass", windowsPowerShell, [...flags, "-ExecutionPolicy", "Bypass", "-Command", `Write-Output '${marker}'`]);
-await runPty("legacy-pty-encoded", windowsPowerShell, [...flags, "-EncodedCommand", Buffer.from(`Write-Output '${marker}'`, "utf16le").toString("base64")]);
-await runPty("legacy-pty-exit", windowsPowerShell, [...flags, "-Command", "exit 0"]);
-await runPty("core-pty", core, [...flags, "-Command", `Write-Output '${marker}'`]);
-await runPipe("core-pipe", core, [...flags, "-Command", `Write-Output '${marker}'`]);
+await runPty("legacy-traced", windowsPowerShell, [...flags, "-Command", `[Console]::WriteLine('BEFORE'); Write-Output '${marker}'; [Console]::WriteLine('AFTER')`]);
+await runPty("legacy-literal", windowsPowerShell, [...flags, "-Command", `'${marker}'`]);
+await runPty("legacy-suppressed", windowsPowerShell, [...flags, "-Command", `$null = Write-Output '${marker}'; [Console]::WriteLine('${marker}')`]);
+await runPty("legacy-host", windowsPowerShell, [...flags, "-Command", `$Host.UI.WriteLine('${marker}')`]);
+await runPty("legacy-buffer", windowsPowerShell, [...flags, "-Command", `[Console]::WriteLine('BEFORE'); [Console]::WriteLine($Host.UI.RawUI.BufferSize.Width); [Console]::WriteLine('${marker}')`]);
+await runPty("legacy-outstring", windowsPowerShell, [...flags, "-Command", `$text = Write-Output '${marker}' | Out-String; [Console]::WriteLine($text)`]);
+await runPty("legacy-explicit-width", windowsPowerShell, [...flags, "-Command", `$text = Write-Output '${marker}' | Out-String -Width 80; [Console]::WriteLine($text)`]);
+await runPty("legacy-xml", windowsPowerShell, [...flags, "-OutputFormat", "XML", "-Command", `Write-Output '${marker}'`]);
+await runPty("core-traced", core, [...flags, "-Command", `[Console]::WriteLine('BEFORE'); Write-Output '${marker}'; [Console]::WriteLine('AFTER')`]);
 await Bun.write("diagnostic-results.json", JSON.stringify(results, null, 2));
