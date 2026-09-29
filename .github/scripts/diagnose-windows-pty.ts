@@ -58,13 +58,13 @@ async function runPipe(name: string, file: string, args: string[]) {
   results.push(result);
 }
 
-await runPty("legacy-traced", windowsPowerShell, [...flags, "-Command", `[Console]::WriteLine('BEFORE'); Write-Output '${marker}'; [Console]::WriteLine('AFTER')`]);
-await runPty("legacy-literal", windowsPowerShell, [...flags, "-Command", `'${marker}'`]);
-await runPty("legacy-suppressed", windowsPowerShell, [...flags, "-Command", `$null = Write-Output '${marker}'; [Console]::WriteLine('${marker}')`]);
-await runPty("legacy-host", windowsPowerShell, [...flags, "-Command", `$Host.UI.WriteLine('${marker}')`]);
-await runPty("legacy-buffer", windowsPowerShell, [...flags, "-Command", `[Console]::WriteLine('BEFORE'); [Console]::WriteLine($Host.UI.RawUI.BufferSize.Width); [Console]::WriteLine('${marker}')`]);
-await runPty("legacy-outstring", windowsPowerShell, [...flags, "-Command", `$text = Write-Output '${marker}' | Out-String; [Console]::WriteLine($text)`]);
-await runPty("legacy-explicit-width", windowsPowerShell, [...flags, "-Command", `$text = Write-Output '${marker}' | Out-String -Width 80; [Console]::WriteLine($text)`]);
-await runPty("legacy-xml", windowsPowerShell, [...flags, "-OutputFormat", "XML", "-Command", `Write-Output '${marker}'`]);
-await runPty("core-traced", core, [...flags, "-Command", `[Console]::WriteLine('BEFORE'); Write-Output '${marker}'; [Console]::WriteLine('AFTER')`]);
+const environment = `[Console]::WriteLine('PSHOME=' + $PSHOME); [Console]::WriteLine('PSModulePath=' + $env:PSModulePath); [Console]::WriteLine('USERPROFILE=' + $env:USERPROFILE); [Console]::WriteLine('ConsoleWindow=' + $Host.UI.RawUI.WindowSize); [Console]::WriteLine('ConsoleBuffer=' + $Host.UI.RawUI.BufferSize)`;
+await runPty("legacy-pty-environment", windowsPowerShell, [...flags, "-Command", environment]);
+await runPipe("legacy-pipe-environment", windowsPowerShell, [...flags, "-Command", environment]);
+await runPty("legacy-progress-silent", windowsPowerShell, [...flags, "-Command", `$ProgressPreference = 'SilentlyContinue'; Write-Output '${marker}'`]);
+await runPty("legacy-qualified", windowsPowerShell, [...flags, "-Command", `Microsoft.PowerShell.Utility\\Write-Output '${marker}'`]);
+await runPty("legacy-clean-modulepath", windowsPowerShell, [...flags, "-Command", `$env:PSModulePath = $PSHOME + '\\Modules'; Write-Output '${marker}'`]);
+await runPty("legacy-import-utility", windowsPowerShell, [...flags, "-Command", `[Console]::WriteLine('BEFORE_IMPORT'); Import-Module Microsoft.PowerShell.Utility; [Console]::WriteLine('AFTER_IMPORT'); Write-Output '${marker}'`]);
+await runPty("legacy-noenumerate", windowsPowerShell, [...flags, "-Command", `Write-Output -NoEnumerate '${marker}'`]);
+await runPty("legacy-command-discovery", windowsPowerShell, [...flags, "-Command", `[Console]::WriteLine('BEFORE_DISCOVERY'); $command = Get-Command Write-Output; [Console]::WriteLine('AFTER_DISCOVERY'); [Console]::WriteLine($command.ModuleName); Write-Output '${marker}'`]);
 await Bun.write("diagnostic-results.json", JSON.stringify(results, null, 2));
