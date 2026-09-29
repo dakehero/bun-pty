@@ -1,4 +1,5 @@
 import { Terminal } from "../../src/terminal";
+import { existsSync, readdirSync } from "node:fs";
 
 const marker = "Hello from PowerShell";
 const flags = ["-NoLogo", "-NoProfile", "-NonInteractive"];
@@ -58,13 +59,15 @@ async function runPipe(name: string, file: string, args: string[]) {
   results.push(result);
 }
 
-const removeAzure = `$filtered = @(); foreach ($p in ($env:PSModulePath -split ';')) { if ($p -notmatch 'Modules[\\\\/]+az_') { $filtered += $p } }; $env:PSModulePath = $filtered -join ';'; [Console]::WriteLine('PSModulePath=' + $env:PSModulePath);`;
-const legacyPath = `$filtered = @(); foreach ($p in ($env:PSModulePath -split ';')) { if ($p -notmatch '[\\\\/]PowerShell[\\\\/]') { $filtered += $p } }; $env:PSModulePath = $filtered -join ';'; [Console]::WriteLine('PSModulePath=' + $env:PSModulePath);`;
-await runPty("legacy-remove-azure", windowsPowerShell, [...flags, "-Command", `${removeAzure} Write-Output '${marker}'`]);
-await runPty("legacy-system-first", windowsPowerShell, [...flags, "-Command", `$env:PSModulePath = $PSHOME + '\\Modules;' + $env:PSModulePath; Write-Output '${marker}'`]);
-await runPipe("legacy-pipe-legacy-path", windowsPowerShell, [...flags, "-Command", `${legacyPath} Write-Output '${marker}'`]);
-await runPty("legacy-azure-first", windowsPowerShell, [...flags, "-Command", `$azure = ''; foreach ($p in ($env:PSModulePath -split ';')) { if ($p -match 'Modules[\\\\/]+az_') { $azure = $p } }; $env:PSModulePath = $azure + ';' + $PSHOME + '\\Modules'; [Console]::WriteLine('PSModulePath=' + $env:PSModulePath); Write-Output '${marker}'`]);
-await runPty("legacy-qualified-1", windowsPowerShell, [...flags, "-Command", `Microsoft.PowerShell.Utility\\Write-Output '${marker}'`]);
-await runPty("legacy-qualified-2", windowsPowerShell, [...flags, "-Command", `Microsoft.PowerShell.Utility\\Write-Output '${marker}'`]);
-await runPty("legacy-qualified-3", windowsPowerShell, [...flags, "-Command", `Microsoft.PowerShell.Utility\\Write-Output '${marker}'`]);
+const candidates = [
+  `${process.env.USERPROFILE}\\Documents\\WindowsPowerShell\\Modules`,
+  "C:\\Users\\packer\\Documents\\WindowsPowerShell\\Modules",
+  "C:\\Program Files\\WindowsPowerShell\\Modules",
+  "C:\\Program Files\\Microsoft SQL Server\\130\\Tools\\PowerShell\\Modules",
+];
+for (const directory of candidates) {
+  console.log("MODULE_DIRECTORY", JSON.stringify({ directory, entries: existsSync(directory) ? readdirSync(directory) : [] }));
+  await runPty(`module-path:${directory}`, windowsPowerShell, [...flags, "-Command", `$env:PSModulePath = '${directory.replaceAll("'", "''")};' + $PSHOME + '\\Modules'; Write-Output '${marker}'`]);
+}
+await runPty("legacy-qualified-cold", windowsPowerShell, [...flags, "-Command", `Microsoft.PowerShell.Utility\\Write-Output '${marker}'`]);
 await Bun.write("diagnostic-results.json", JSON.stringify(results, null, 2));
