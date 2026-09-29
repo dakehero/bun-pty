@@ -58,13 +58,13 @@ async function runPipe(name: string, file: string, args: string[]) {
   results.push(result);
 }
 
-const environment = `[Console]::WriteLine('PSHOME=' + $PSHOME); [Console]::WriteLine('PSModulePath=' + $env:PSModulePath); [Console]::WriteLine('USERPROFILE=' + $env:USERPROFILE); [Console]::WriteLine('ConsoleWindow=' + $Host.UI.RawUI.WindowSize); [Console]::WriteLine('ConsoleBuffer=' + $Host.UI.RawUI.BufferSize)`;
-await runPty("legacy-pty-environment", windowsPowerShell, [...flags, "-Command", environment]);
-await runPipe("legacy-pipe-environment", windowsPowerShell, [...flags, "-Command", environment]);
-await runPty("legacy-progress-silent", windowsPowerShell, [...flags, "-Command", `$ProgressPreference = 'SilentlyContinue'; Write-Output '${marker}'`]);
-await runPty("legacy-qualified", windowsPowerShell, [...flags, "-Command", `Microsoft.PowerShell.Utility\\Write-Output '${marker}'`]);
-await runPty("legacy-clean-modulepath", windowsPowerShell, [...flags, "-Command", `$env:PSModulePath = $PSHOME + '\\Modules'; Write-Output '${marker}'`]);
-await runPty("legacy-import-utility", windowsPowerShell, [...flags, "-Command", `[Console]::WriteLine('BEFORE_IMPORT'); Import-Module Microsoft.PowerShell.Utility; [Console]::WriteLine('AFTER_IMPORT'); Write-Output '${marker}'`]);
-await runPty("legacy-noenumerate", windowsPowerShell, [...flags, "-Command", `Write-Output -NoEnumerate '${marker}'`]);
-await runPty("legacy-command-discovery", windowsPowerShell, [...flags, "-Command", `[Console]::WriteLine('BEFORE_DISCOVERY'); $command = Get-Command Write-Output; [Console]::WriteLine('AFTER_DISCOVERY'); [Console]::WriteLine($command.ModuleName); Write-Output '${marker}'`]);
+const removeAzure = `$filtered = @(); foreach ($p in ($env:PSModulePath -split ';')) { if ($p -notmatch 'Modules[\\\\/]+az_') { $filtered += $p } }; $env:PSModulePath = $filtered -join ';'; [Console]::WriteLine('PSModulePath=' + $env:PSModulePath);`;
+const legacyPath = `$filtered = @(); foreach ($p in ($env:PSModulePath -split ';')) { if ($p -notmatch '[\\\\/]PowerShell[\\\\/]') { $filtered += $p } }; $env:PSModulePath = $filtered -join ';'; [Console]::WriteLine('PSModulePath=' + $env:PSModulePath);`;
+await runPty("legacy-remove-azure", windowsPowerShell, [...flags, "-Command", `${removeAzure} Write-Output '${marker}'`]);
+await runPty("legacy-system-first", windowsPowerShell, [...flags, "-Command", `$env:PSModulePath = $PSHOME + '\\Modules;' + $env:PSModulePath; Write-Output '${marker}'`]);
+await runPipe("legacy-pipe-legacy-path", windowsPowerShell, [...flags, "-Command", `${legacyPath} Write-Output '${marker}'`]);
+await runPty("legacy-azure-first", windowsPowerShell, [...flags, "-Command", `$azure = ''; foreach ($p in ($env:PSModulePath -split ';')) { if ($p -match 'Modules[\\\\/]+az_') { $azure = $p } }; $env:PSModulePath = $azure + ';' + $PSHOME + '\\Modules'; [Console]::WriteLine('PSModulePath=' + $env:PSModulePath); Write-Output '${marker}'`]);
+await runPty("legacy-qualified-1", windowsPowerShell, [...flags, "-Command", `Microsoft.PowerShell.Utility\\Write-Output '${marker}'`]);
+await runPty("legacy-qualified-2", windowsPowerShell, [...flags, "-Command", `Microsoft.PowerShell.Utility\\Write-Output '${marker}'`]);
+await runPty("legacy-qualified-3", windowsPowerShell, [...flags, "-Command", `Microsoft.PowerShell.Utility\\Write-Output '${marker}'`]);
 await Bun.write("diagnostic-results.json", JSON.stringify(results, null, 2));

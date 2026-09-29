@@ -425,7 +425,7 @@ describe.skipIf(!runIntegrationTests)("Integration Tests", () => {
       "-NoProfile",
       "-NonInteractive",
       "-Command",
-      "Write-Output 'Hello from PowerShell'",
+      "Microsoft.PowerShell.Utility\\Write-Output 'Hello from PowerShell'",
     ]);
     terminals.push(terminal);
 

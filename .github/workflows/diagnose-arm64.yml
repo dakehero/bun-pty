@@ -47,6 +47,14 @@ jobs:
           Get-ItemProperty 'HKCU:\Console' | Select-Object ForceV2,VirtualTerminalLevel,QuickEdit
           $env:DIAGNOSTIC_PWSH = (Get-Process -Id $PID).Path
           bun .github/scripts/diagnose-windows-pty.ts
+      - name: Run existing unit tests
+        env:
+          BUN_PTY_LIB: ${{ github.workspace }}/rust-pty/target/${{ matrix.target }}/release/rust_pty.dll
+        run: bun run test:unit
+      - name: Run existing integration tests with qualified cmdlet
+        env:
+          BUN_PTY_LIB: ${{ github.workspace }}/rust-pty/target/${{ matrix.target }}/release/rust_pty.dll
+        run: bun run test:integration
       - uses: actions/upload-artifact@v4
         if: always()
         with:
